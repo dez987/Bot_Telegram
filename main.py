@@ -1,13 +1,14 @@
 import os
 import gspread
 import telebot
-import json  # <--- NOVO: Usaremos a biblioteca padrão de JSON
+import json
 from flask import Flask, request
-from oauth2client.service_account import ServiceAccountCredentials
+# ALTERADO: Importa a biblioteca de credenciais correta e moderna
+from google.oauth2.service_account import Credentials
 from datetime import datetime
 from pytz import timezone
 
-# --- CONFIGURAÇÃO (via Variáveis de Ambiente) ---
+# --- CONFIGURAÇÕES (via Variáveis de Ambiente) ---
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 GOOGLE_CREDS_JSON_STRING = os.environ.get('GOOGLE_CREDS_JSON_STRING')
 SPREADSHEET_NAME = os.environ.get('SPREADSHEET_NAME')
@@ -19,12 +20,12 @@ server = Flask(__name__)
 # --- FUNÇÕES DO BOT ---
 def conectar_planilha():
     try:
-        # ALTERADO: Trocamos o perigoso 'eval()' pelo seguro 'json.loads()'
-        creds_dict = json.loads(GOOGLE_CREDS_JSON_STRING)
-        
+        # ALTERADO: Lógica de autenticação atualizada para usar 'google-auth'
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-        creds = ServiceAccountCredentials.for_json_keyfile_dict(creds_dict, scope)
+        creds_dict = json.loads(GOOGLE_CREDS_JSON_STRING)
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(creds)
+        
         sheet = client.open(SPREADSHEET_NAME).sheet1
         return sheet
     except Exception as e:
@@ -63,7 +64,6 @@ def get_message():
     json_string = request.get_data().decode('utf-8')
     update = telebot.types.Update.de_json(json_string)
     
-    # ALTERADO: Adicionamos uma verificação para só processar mensagens de texto
     if update.message and update.message.text:
         processar_gasto(update.message)
         
